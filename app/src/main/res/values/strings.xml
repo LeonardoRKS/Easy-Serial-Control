@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Easy Serial Control</string>
+    <string name="title_activity_delivery">DeliveryActivity</string>
 </resources>
