@@ -23,6 +23,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,6 +33,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,73 +68,7 @@ import br.com.easyserialcontrol.ui.theme.EasySerialControlTheme
 class MainActivity : ComponentActivity() {
     private val PERMISSION_CODE = 1
 
-    private val bluetoothAdapter: BluetoothAdapter by lazy {
-        val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        bluetoothManager.adapter
-    }
-
-    private val activityResultLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == RESULT_OK) {
-            Log.i("Bluetooth", ":request permission result ok")
-        } else {
-            Log.i("Bluetooth", ":request permission result canceled /denied")
-        }
-    }
-
-    private fun requestBluetoothPermission() {
-        val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-        activityResultLauncher.launch(enableBluetoothIntent)
-    }
-
-//    var pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices
-    var discorveredDevices: Set<BluetoothDevice> = emptySet()
-
-    private val receiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent) {
-            when (intent.action) {
-                BluetoothDevice.ACTION_FOUND -> {
-                    val device: BluetoothDevice? =
-                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
-                    if (device != null) {
-                        val updated = discorveredDevices.plus(device)
-                        discorveredDevices = updated
-                    }
-                    Log.i("Bluetooth", "onReceive: Device found")
-                }
-
-                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
-                    Log.i("Bluetooth", "onReceive: Started Discovery")
-                }
-
-                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
-                    Log.i("Bluetooth", "onReceive: Finished Discovery")
-                }
-            }
-        }
-    }
-
-    private fun scan(): Set<BluetoothDevice> {
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.BLUETOOTH_SCAN
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            if (bluetoothAdapter.isDiscovering) {
-                bluetoothAdapter.cancelDiscovery()
-                bluetoothAdapter.startDiscovery()
-            } else {
-                bluetoothAdapter.startDiscovery()
-            }
-
-            Handler(Looper.getMainLooper()).postDelayed({
-                bluetoothAdapter.cancelDiscovery()
-            }, 10000L)
-        }
-
-        return discorveredDevices
-    }
+    private var bluetoothAdapter: BluetoothAdapter = getDefaultAdapter()
 
     @RequiresApi(Build.VERSION_CODES.Q)
     @OptIn(ExperimentalMaterial3Api::class)
@@ -138,29 +76,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val foundFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        val startFilter = IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
-        val endFilter = IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
-        registerReceiver(receiver, foundFilter)
-        registerReceiver(receiver, startFilter)
-        registerReceiver(receiver, endFilter)
-
-        if (!bluetoothAdapter.isEnabled) {
-            requestBluetoothPermission()
-        }
-
-        if (SDK_INT >= Build.VERSION_CODES.O) {
-            if (ContextCompat.checkSelfPermission(
-                    baseContext, android.Manifest.permission.ACCESS_BACKGROUND_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                ActivityCompat.requestPermissions(
-                    this, arrayOf(android.Manifest.permission.ACCESS_BACKGROUND_LOCATION),
-                    PERMISSION_CODE
-                )
-            }
-        }
-
+        setBluetoothConfig()
 
         setContent {
             var devices: Set<BluetoothDevice> by remember { mutableStateOf(emptySet()) }
@@ -238,6 +154,101 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+    private fun setBluetoothConfig() {
+        val foundFilter = IntentFilter(BluetoothDevice.ACTION_FOUND)
+        val startFilter = IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_STARTED)
+        val endFilter = IntentFilter(BluetoothAdapter.ACTION_DISCOVERY_FINISHED)
+        registerReceiver(receiver, foundFilter)
+        registerReceiver(receiver, startFilter)
+        registerReceiver(receiver, endFilter)
+
+        /* val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
+         bluetoothManager.adapter*/
+
+        if (!bluetoothAdapter.isEnabled) {
+            requestBluetoothPermission()
+        }
+
+        if (SDK_INT >= Build.VERSION_CODES.O) {
+            if (ContextCompat.checkSelfPermission(
+                    baseContext, android.Manifest.permission_group.NEARBY_DEVICES
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                ActivityCompat.requestPermissions(
+                    this, arrayOf(android.Manifest.permission_group.NEARBY_DEVICES, android.Manifest.permission.BLUETOOTH_CONNECT),
+                    PERMISSION_CODE
+                )
+            }
+        }
+    }
+
+
+
+
+    private val activityResultLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == RESULT_OK) {
+            Log.i("Bluetooth", ":request permission result ok")
+        } else {
+            Log.i("Bluetooth", ":request permission result canceled /denied")
+        }
+    }
+
+    private fun requestBluetoothPermission() {
+        val enableBluetoothIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+        activityResultLauncher.launch(enableBluetoothIntent)
+    }
+
+    //    var pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices
+    var discorveredDevices: Set<BluetoothDevice> = emptySet()
+
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent) {
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device: BluetoothDevice? =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE)
+                    if (device != null) {
+                        val updated = discorveredDevices.plus(device)
+                        discorveredDevices = updated
+                    }
+                    Log.i("Bluetooth", "onReceive: Device found")
+                }
+
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
+                    Log.i("Bluetooth", "onReceive: Started Discovery")
+                }
+
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
+                    Log.i("Bluetooth", "onReceive: Finished Discovery")
+                }
+            }
+        }
+    }
+
+    private fun scan(): Set<BluetoothDevice> {
+        if (ActivityCompat.checkSelfPermission(
+                this,
+                Manifest.permission.BLUETOOTH_SCAN
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            if (bluetoothAdapter.isDiscovering) {
+                bluetoothAdapter.cancelDiscovery()
+                bluetoothAdapter.startDiscovery()
+            } else {
+                bluetoothAdapter.startDiscovery()
+            }
+
+            Handler(Looper.getMainLooper()).postDelayed({
+                bluetoothAdapter.cancelDiscovery()
+            }, 10000L)
+        }
+
+        return discorveredDevices
+    }
+
 
     override fun onDestroy() {
         super.onDestroy()
