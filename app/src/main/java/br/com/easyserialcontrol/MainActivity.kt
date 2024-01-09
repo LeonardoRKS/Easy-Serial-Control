@@ -20,6 +20,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -27,10 +28,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -42,10 +47,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.widget.NestedScrollView
 import br.com.easyserialcontrol.ui.theme.EasySerialControlTheme
 
 
@@ -53,6 +60,7 @@ import br.com.easyserialcontrol.ui.theme.EasySerialControlTheme
     val name: String
 )*/
 
+@Suppress("DEPRECATION")
 class MainActivity : ComponentActivity() {
     private val PERMISSION_CODE = 1
 
@@ -124,6 +132,7 @@ class MainActivity : ComponentActivity() {
         return discorveredDevices
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     @OptIn(ExperimentalMaterial3Api::class)
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -194,20 +203,33 @@ class MainActivity : ComponentActivity() {
                             Spacer(modifier = Modifier.height(10.dp))
                             val pairedDevices: Set<BluetoothDevice> = bluetoothAdapter.bondedDevices
                             pairedDevices.forEach { device ->
+                                val context = LocalContext.current
                                 Card(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 10.dp, vertical = 5.dp),
                                     elevation = CardDefaults.cardElevation(10.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(10.dp),
-                                        verticalArrangement = Arrangement.spacedBy(10.dp)
                                     ) {
-                                        Text(text = device.name)
-                                        Text(text = device.address)
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Button(
+                                                onClick = {
+                                                    if (device.bondState != BluetoothDevice.BOND_BONDED) {
+                                                        device.createBond()
+                                                    }
+                                                    val intent = Intent(context, DeliveryActivity::class.java)
+                                                    context.startActivity(intent)
+                                                }
+                                            ) {
+                                                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                            }
+                                            Text(text = device.name)
+                                            Text(text = device.address)
+                                        }
                                     }
                                 }
                             }
@@ -216,7 +238,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
 
     override fun onDestroy() {
         super.onDestroy()
